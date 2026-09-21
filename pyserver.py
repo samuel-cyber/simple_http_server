@@ -104,7 +104,25 @@ class RequestHandler(BaseHTTPRequestHandler):
         else:
             self._send(400, {"message": "Wrong Path Given"})
 
+    def do_PATCH(self):
+        if self.path.startswith("/users/"):
+            try:
+                path = self.path.split("/")
+                id_num = int(path[2])
+                length = int(self.headers.get("Content-Length"))
+                body = json.loads(self.rfile.read(length))
+                existing_users = load_users()
+                index = binary_search(id_num,existing_users)
 
+                for key in body.keys():
+                    if key == "id":
+                        pass
+                    else:
+                        existing_users[index][key] = body[key]
+                write_users(existing_users)
+                self._send(200, {"message": f"Updated Given Fields at ID: {id_num}"})
+            except (IndexError,ValueError,TypeError):
+                self._send(400, {"message": f"Incorrect ID Given"})
 if __name__ == "__main__":
     print("Server is running at Port: 3500")
     HTTPServer(("",3500),RequestHandler).serve_forever()

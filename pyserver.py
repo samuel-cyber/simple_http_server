@@ -4,7 +4,19 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 DB_FILE = "users.json"
 
+def binary_search(target_id,arr):
+    lo = 0
+    hi = len(arr)-1
 
+    while lo<=hi:
+        mid = (lo+hi)//2
+        if arr[mid]["id"] == target_id:
+            return mid
+        elif arr[mid]["id"] > target_id:
+            hi = mid-1
+        elif arr[mid]["id"] < target_id:
+            lo = mid+1
+    return None
 
 
 def load_users():
@@ -31,12 +43,14 @@ class RequestHandler(BaseHTTPRequestHandler):
             users = load_users()
             self._send(200,users)
         elif self.path.startswith("/users/"):
-            path = self.path.split("/")
-            id_num = int(path[2])
             try:
+                path = self.path.split("/")
+                id_num = int(path[2])
                 users = load_users()
-                self._send(200,users[id_num-1])
-            except IndexError:
+                index = binary_search(id_num,users)
+
+                self._send(200,users[index])
+            except (IndexError,ValueError,TypeError):
                 self._send(404,{"message": "User Not Found"})
         else:
             self._send(404,{"message": "Wrong Path"})
@@ -45,7 +59,10 @@ class RequestHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length"))
             body = json.loads(self.rfile.read(length))
             existing_users = load_users()
-            id = len(existing_users) + 1
+            if existing_users:
+                id = existing_users[-1]["id"]+1
+            else:
+                id = 1
 
             existing_users.append({"id": id, "name": body.get("name"), "email": body.get("email")})
             write_users(existing_users)
@@ -64,10 +81,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length"))
                 body = json.loads(self.rfile.read(length))
                 existing_users = load_users()
-                existing_users[id_num-1] = {"id": id_num, "name": body.get("name"),"email": body.get("email")}
+                index = binary_search(id_num,existing_users)
+                existing_users[index] = {"id": id_num, "name": body.get("name"),"email": body.get("email")}
                 write_users(existing_users)
                 self._send(200, {"message": f"User at ID: {id_num} replaced"})
-            except IndexError:
+            except (IndexError,ValueError,TypeError):
                 self._send(404,{"message": "ID not found"})
         else:
             self._send(400,{"message": "Wrong Path"})
@@ -77,11 +95,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                 path = self.path.split("/")
                 id_num = int(path[2])
                 existing_users = load_users()
-
-                del existing_users[id_num-1]
+                index = binary_search(id_num,existing_users)
+                del existing_users[index]
                 write_users(existing_users)
                 self._send(200, {"message": f"User at ID: {id_num} has been deleted"})
-            except IndexError:
+            except (IndexError,ValueError,TypeError):
                 self._send(400, {"message": f"Incorrect ID Given"})
         else:
             self._send(400, {"message": "Wrong Path Given"})
